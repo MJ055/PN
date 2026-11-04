@@ -11,4 +11,4 @@ ENV NODE_HOST=0.0.0.0 \
     SSL_CERT_FILE=/var/lib/pg-node/certs/ssl_cert.pem \
     SSL_KEY_FILE=/var/lib/pg-node/certs/ssl_key.pem
 
-ENTRYPOINT ["/entrypoint.sh"]
+ENTRYPOINT ["/bin/sh", "/entrypoint.sh"]
