@@ -1,3 +1,4 @@
+
 #!/bin/sh
 set -e
 
@@ -9,11 +10,22 @@ KEY_FILE=$DATA_DIR/api_key.txt
 
 mkdir -p "$CERT_DIR"
 
-# Railway خودش این متغیر رو به هر سرویس تزریق می‌کنه؛ همون آدرس داخلیه که پنل باهاش وصل میشه
-HOSTNAME_FOR_CERT="${RAILWAY_PUBLIC_DOMAIN:-node}"
+# دریافت دامنه عمومی Railway TCP Proxy
+HOSTNAME_FOR_CERT="${RAILWAY_TCP_PROXY_DOMAIN:-}"
+PUBLIC_PORT="${RAILWAY_TCP_PROXY_PORT:-}"
 
-if [ ! -f "$CERT" ]  [ ! -f "$KEY" ]; then
-  echo ">> در حال ساخت گواهی SSL برای نود (CN/SAN = $HOSTNAME_FOR_CERT)..."
+# جلوگیری از اجرای اشتباه در حالت Private
+if [ -z "$HOSTNAME_FOR_CERT" ] || [ -z "$PUBLIC_PORT" ]; then
+  echo "ERROR: Railway TCP Proxy is not enabled!"
+  echo "Enable TCP Proxy on port 2211."
+  exit 1
+fi
+
+# ساخت گواهی SSL برای دامنه عمومی
+if [ ! -f "$CERT" ] || [ ! -f "$KEY" ]; then
+
+  echo ">> Generating public SSL certificate..."
+
   cat > /tmp/node_ext.cnf << EOF
 [req]
 distinguished_name = req_distinguished_name
@@ -29,32 +41,38 @@ subjectAltName = @alt_names
 [alt_names]
 DNS.1 = ${HOSTNAME_FOR_CERT}
 EOF
+
   openssl req -x509 -newkey rsa:2048 -nodes -days 3650 \
-    -keyout "$KEY" -out "$CERT" \
-    -config /tmp/node_ext.cnf -extensions v3_req 2>/dev/null
+    -keyout "$KEY" \
+    -out "$CERT" \
+    -config /tmp/node_ext.cnf \
+    -extensions v3_req 2>/dev/null
+
   rm -f /tmp/node_ext.cnf
 fi
 
-# اگه API_KEY رو خودت دستی توی Variables ست کرده باشی همون استفاده میشه.
-# در غیر این صورت، یه بار می‌سازه و توی Volume نگه می‌داره تا با هر ری‌استارت عوض نشه.
+# حفظ API Key
 if [ -z "$API_KEY" ]; then
   if [ -f "$KEY_FILE" ]; then
     API_KEY=$(cat "$KEY_FILE")
   else
-    API_KEY=$(cat /proc/sys/kernel/random/uuid 2>/dev/null  openssl rand -hex 16)
+    API_KEY=$(cat /proc/sys/kernel/random/uuid 2>/dev/null || openssl rand -hex 16)
     echo "$API_KEY" > "$KEY_FILE"
   fi
   export API_KEY
 fi
 
-echo "================================================================"
-echo "این اطلاعات رو برای اضافه‌کردن این نود توی پنل لازم داری:"
-echo "  Address : $HOSTNAME_FOR_CERT"
-echo "  Port    : $SERVICE_PORT"
-echo "  API Key : $API_KEY"
+echo "============================================================"
+echo "        PASARGUARD PUBLIC NODE"
+echo "============================================================"
+echo "Address : $HOSTNAME_FOR_CERT"
+echo "Port    : $PUBLIC_PORT"
+echo "Internal: $SERVICE_PORT"
+echo "Protocol: gRPC"
+echo "API Key : $API_KEY"
 echo ""
-echo "و این متن رو توی فیلد Certificate پنل پیست کن:"
+echo "SSL Certificate:"
 cat "$CERT"
-echo "================================================================"
+echo "============================================================"
 
 exec ./main
