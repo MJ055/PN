@@ -10,18 +10,17 @@ KEY_FILE=$DATA_DIR/api_key.txt
 
 mkdir -p "$CERT_DIR"
 
-# دریافت دامنه عمومی Railway TCP Proxy
+
 HOSTNAME_FOR_CERT="${RAILWAY_TCP_PROXY_DOMAIN:-}"
 PUBLIC_PORT="${RAILWAY_TCP_PROXY_PORT:-}"
 
-# جلوگیری از اجرای اشتباه در حالت Private
+
 if [ -z "$HOSTNAME_FOR_CERT" ] || [ -z "$PUBLIC_PORT" ]; then
   echo "ERROR: Railway TCP Proxy is not enabled!"
-  echo "Enable TCP Proxy on port 2211."
+  echo "Enable TCP Proxy on port 8080."
   exit 1
 fi
 
-# ساخت گواهی SSL برای دامنه عمومی
 if [ ! -f "$CERT" ] || [ ! -f "$KEY" ]; then
 
   echo ">> Generating public SSL certificate..."
